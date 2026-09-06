@@ -9,6 +9,7 @@ from constants import *
 def set_channel(interface, channel):
     subprocess.run(
         ['iw', 'dev', interface, 'set', 'channel', str(channel)],
+        check=True,
         stderr=subprocess.DEVNULL
     )
 

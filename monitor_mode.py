@@ -13,27 +13,36 @@ def get_wifi_interfaces():
         
     return interfaces
 
-def kill_wifi_processes():
-    subprocess.run(['sudo', 'systemctl', 'stop', 'NetworkManager'], )
-    subprocess.run(['sudo', 'systemctl', 'stop', 'wpa_supplicant'], )
+# def kill_wifi_processes():
+#     subprocess.run(['sudo', 'systemctl', 'stop', 'NetworkManager'])
+#     subprocess.run(['sudo', 'systemctl', 'stop', 'wpa_supplicant'])
+
+
+def isolate_interface(interface):
+    subprocess.run(['nmcli', 'device', 'set', interface, 'managed', 'no'], check=True)
+
+def restore_interface(interface):
+    subprocess.run(['sudo', 'nmcli', 'device', 'set', interface, 'managed', 'yes'], check=True)
 
 
 def enter_monitor_mode(interface):
-    mon_interface = interface + 'mon'
+    mon_interface = interface # + 'mon'
     
-    subprocess.run(['iw', 'dev', interface, 'interface', 'add', mon_interface, 'type', 'monitor'])
-    subprocess.run(['ip', 'link', 'set', interface, 'down'])
-    subprocess.run(['ip', 'link', 'set', mon_interface, 'up'])
+    isolate_interface(interface)
+    subprocess.run(['ip', 'link', 'set', interface, 'down'], check=True)
+    subprocess.run(['iw', 'dev', interface, 'set', 'type', 'monitor'], check=True)
+    subprocess.run(['ip', 'link', 'set', mon_interface, 'up'], check=True)
     
     return mon_interface 
 
 
 def leave_monitor_mode(interface):
-    base_iface = interface[:-3]  # strip 'mon' from the end
+    base_iface = interface # [:-3]  # strip 'mon' from the end
     
-    subprocess.run(['sudo', 'iw', 'dev', interface, 'del'], )
-    subprocess.run(['sudo', 'ip', 'link', 'set', base_iface, 'up'], )
-    subprocess.run(['sudo', 'systemctl', 'start', 'NetworkManager'], )
+    subprocess.run(['ip', 'link', 'set', interface, 'down'])
+    subprocess.run(['iw', 'dev', interface, 'set', 'type', 'managed'])
+    subprocess.run(['ip', 'link', 'set', interface, 'up'])
+    restore_interface(interface)
     
     return base_iface
 
@@ -42,7 +51,6 @@ def leave_monitor_mode(interface):
 def monitor_mode(interface):
     print(f'({interface}) Entering monitor mode...')
 
-    kill_wifi_processes()
     interface = enter_monitor_mode(interface)
     
     print(f'({interface}) In monitor mode.')
